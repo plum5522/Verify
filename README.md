@@ -4,7 +4,7 @@ Detecting AI-generated images in the content people actually forward on WhatsApp
 
 ## Why this exists
 
-My mother scrolls reels and family WhatsApp forwards, and regularly believes images that are clearly AI-generated. Most AI-image detectors are trained and tested on clean, full-quality images. But a WhatsApp forward has been compressed, resized, and re-compressed, sometimes many times over, which destroys the fine details detectors rely on.
+AI-generated images spread widely through reels and WhatsApp forwards, and many people, especially those less familiar with technology, accept them as real. Most AI-image detectors are trained and tested on clean, full-quality images. But a WhatsApp forward has been compressed, resized, and re-compressed, sometimes many times over, which destroys the fine details detectors rely on.
 
 Verify is a self-trained detector and a backend API built around that gap: what happens to detection accuracy on the images real people actually see?
 
