@@ -1,0 +1,18 @@
+# Model weights: binary, too large for git. Distributed via GitHub Releases.
+models/*.pth
+*.pth
+
+# Local database (contains scan history)
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# OS / editor
+.DS_Store
+.vscode/
+.ipynb_checkpoints/

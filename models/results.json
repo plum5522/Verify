@@ -1,0 +1,49 @@
+{
+  "test_accuracy": 0.97905,
+  "false_positive_rate": 0.0148,
+  "miss_rate": 0.0271,
+  "best_val_acc": 0.9825,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.1270353989508417,
+      "train_acc": 0.9505444444444444,
+      "val_loss": 0.06062208433151245,
+      "val_acc": 0.978,
+      "minutes": 10.36685639222463
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.05504763435920079,
+      "train_acc": 0.9796666666666667,
+      "val_loss": 0.05072560127973556,
+      "val_acc": 0.9825,
+      "minutes": 17.477359783649444
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.03398738252189424,
+      "train_acc": 0.9877222222222222,
+      "val_loss": 0.05513136655092239,
+      "val_acc": 0.9804,
+      "minutes": 4.236745337645213
+    }
+  ],
+  "class_to_idx": {
+    "FAKE": 0,
+    "REAL": 1
+  },
+  "img_size": 224,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "learning_rate": 0.0001,
+  "epochs": 3
+}
