@@ -62,4 +62,4 @@ These are the reasons the next steps exist, not footnotes:
 
 ## Setup
 
-The trained weights (`verify_effnetb0_best.pth`) are not stored in git. Download them from the repository's Releases page into `models/`.
+The trained weights are included at `models/verify_effnetb0_best.pth` (~16 MB). Future model versions will be published as GitHub Releases instead, to keep the repository small.

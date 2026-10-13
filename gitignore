@@ -1,6 +1,6 @@
-# Model weights: binary, too large for git. Distributed via GitHub Releases.
-models/*.pth
-*.pth
+# Future model versions go to GitHub Releases, not git
+# (v1 weights are already committed intentionally)
+models/*_v2*.pth
 
 # Local database (contains scan history)
 *.db
