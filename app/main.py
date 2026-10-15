@@ -11,12 +11,12 @@ from typing import Literal
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
 
-from app import db, provenance
+from app import db, fingerprint, provenance
 from app.model import MODEL_VERSION, load_image, predict
 
 MAX_BYTES = 10 * 1024 * 1024   # 10 MB
 # Cache key = model AND decision rules. Bumping "prov1" invalidates answers made under old rules.
-ANALYSIS_VERSION = f"{MODEL_VERSION}+prov1"
+ANALYSIS_VERSION = f"{MODEL_VERSION}+prov2"     # prov2: adds look-alike matching
 
 Verdict = Literal["ai_declared", "likely_ai", "inconclusive", "likely_real"]
 
@@ -38,7 +38,7 @@ app = FastAPI(
 
 # ---------- Response shapes ----------
 class Signal(BaseModel):
-    source: str        # "iptc", "c2pa", "metadata", "model"
+    source: str        # "iptc", "c2pa", "metadata", "similarity", "model"
     finding: str
     detail: str
 
@@ -75,18 +75,38 @@ def _to_result(row: dict, cached: bool) -> ScanResult:
     )
 
 
-def decide(prov: dict, model_result: dict) -> tuple[str, list[dict]]:
+def find_lookalike(phash: str) -> tuple[int, int] | None:
+    """Closest earlier scan that carried an AI label, if it is within MAX_DISTANCE bits."""
+    best = None
+    for scan_id, other in db.declared_ai_hashes():
+        d = fingerprint.distance(phash, other)
+        if d <= fingerprint.MAX_DISTANCE and (best is None or d < best[1]):
+            best = (scan_id, d)
+    return best
+
+
+def decide(prov: dict, lookalike: tuple[int, int] | None, model_result: dict) -> tuple[str, list[dict]]:
     """Combine the evidence into one verdict.
     1. A declared AI label wins: the generator itself says so.
-    2. The model may raise suspicion (likely_ai) but never clears an image: on the external test,
+    2. A near-identical copy of an image that WAS labelled is likely AI (the label was stripped).
+       Not 'ai_declared': this file itself carries no label.
+    3. The model may raise suspicion (likely_ai) but never clears an image: on the external test,
        every model's "real" answers were wrong for most AI images, so 'likely_real' becomes 'inconclusive'.
     """
     model_signal = {"source": "model", "finding": model_result["verdict"],
                     "detail": f"{MODEL_VERSION}: p_fake {model_result['p_fake']:.3f}. "
                               "Pixel-based detection is unreliable on current generators and forwarded images."}
-    signals = prov["signals"] + [model_signal]
+    signals = list(prov["signals"])
+    if lookalike and not prov["ai_declared"]:
+        scan_id, d = lookalike
+        signals.append({"source": "similarity", "finding": "matches_declared_ai",
+                        "detail": f"Looks like a copy of scan {scan_id} ({d}/64 bits differ), "
+                                  "whose file declared it AI-generated"})
+    signals.append(model_signal)
     if prov["ai_declared"]:
         return "ai_declared", signals
+    if lookalike:
+        return "likely_ai", signals
     if model_result["verdict"] == "likely_ai":
         return "likely_ai", signals
     return "inconclusive", signals
@@ -127,11 +147,15 @@ def create_scan(response: Response, file: UploadFile = File(...)):
     except ValueError:
         raise HTTPException(status_code=415, detail="File is not a valid image.")
 
-    # 4. Evidence: labels in the raw bytes (decoding threw the metadata away), then the model
+    # 4. Evidence: labels in the raw bytes (decoding threw the metadata away),
+    #    look-alikes of earlier labelled scans, then the model
     prov = provenance.check(data)
+    phash = fingerprint.phash(img)
+    lookalike = None if prov["ai_declared"] else find_lookalike(phash)
     result = predict(img)
-    result["verdict"], result["signals"] = decide(prov, result)
+    result["verdict"], result["signals"] = decide(prov, lookalike, result)
     result["model_version"] = ANALYSIS_VERSION
+    result["phash"] = phash
 
     # 5. Store it (201 Created)
     row = db.insert_scan(sha256, result)

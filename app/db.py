@@ -35,7 +35,8 @@ def init_db():
                 verdict       TEXT    NOT NULL,
                 model_version TEXT    NOT NULL,
                 latency_ms    INTEGER NOT NULL,
-                signals       TEXT    NOT NULL DEFAULT '[]'
+                signals       TEXT    NOT NULL DEFAULT '[]',
+                phash         TEXT
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_hash_model ON scans (image_sha256, model_version)")
@@ -45,6 +46,9 @@ def init_db():
         columns = {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}
         if "signals" not in columns:
             conn.execute("ALTER TABLE scans ADD COLUMN signals TEXT NOT NULL DEFAULT '[]'")
+        # Migration 2: perceptual hash for matching forwarded copies (NULL for older rows)
+        if "phash" not in columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN phash TEXT")
 
 
 def _row(row) -> dict | None:
@@ -60,10 +64,10 @@ def insert_scan(image_sha256: str, result: dict) -> dict:
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO scans (created_at, image_sha256, p_fake, verdict, model_version, latency_ms, signals) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (created_at, image_sha256, result["p_fake"], result["verdict"],
-             result["model_version"], result["latency_ms"], json.dumps(result["signals"])),
+            "INSERT INTO scans (created_at, image_sha256, p_fake, verdict, model_version, latency_ms, "
+            "signals, phash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (created_at, image_sha256, result["p_fake"], result["verdict"], result["model_version"],
+             result["latency_ms"], json.dumps(result["signals"]), result.get("phash")),
         )
         new_id = cur.lastrowid
     return get_scan(new_id)
@@ -81,6 +85,16 @@ def find_by_hash(image_sha256: str, model_version: str) -> dict | None:
             "SELECT * FROM scans WHERE image_sha256 = ? AND model_version = ? ORDER BY id DESC LIMIT 1",
             (image_sha256, model_version),
         ).fetchone())
+
+
+def declared_ai_hashes() -> list[tuple[int, str]]:
+    """(id, phash) of every scan whose file carried an AI label.
+    Compared in Python: SQLite has no bit-count function. A linear scan is fine for thousands
+    of rows; at millions this would need an index for Hamming distance (e.g. a BK-tree)."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, phash FROM scans WHERE verdict = 'ai_declared' AND phash IS NOT NULL").fetchall()
+    return [(r["id"], r["phash"]) for r in rows]
 
 
 def list_scans(limit: int) -> list[dict]:

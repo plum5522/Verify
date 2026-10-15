@@ -15,6 +15,7 @@ httpx==0.28.1
 httpx2==2.13.1
 huggingface_hub==2.2.0
 idna==3.20
+ImageHash==4.3.2
 iniconfig==2.3.1
 Jinja2==3.1.6
 markdown-it-py==4.2.0
@@ -34,10 +35,12 @@ Pygments==2.21.0
 pytest==9.1.1
 python-dotenv==1.2.4
 python-multipart==0.0.32
+PyWavelets==1.10.0
 PyYAML==6.0.3
 regex==2026.9.29
 rich==15.0.0
 safetensors==0.8.0
+scipy==1.18.1
 setuptools==84.0.0
 shellingham==1.5.4
 starlette==1.8.0

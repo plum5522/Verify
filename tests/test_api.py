@@ -71,3 +71,25 @@ def test_migration_adds_signals_column(tmp_path, monkeypatch):
     db.init_db()
     row = db.get_scan(1)
     assert row["signals"] == [] and row["verdict"] == "inconclusive"
+
+
+def test_forwarded_copy_of_labelled_image_is_likely_ai(client):
+    """Scan an original carrying an AI label, then a 'forward' of it: same picture, JPEG q80,
+    smaller, no label. The forward should be linked back to the original."""
+    import io
+    from PIL import Image
+    from tests.conftest import pattern
+    original = upload(client, make_png("trainedAlgorithmicMedia", seed=7)).json()
+    buf = io.BytesIO()
+    pattern(7).resize((200, 200)).save(buf, "JPEG", quality=80)
+    forward = upload(client, buf.getvalue(), "fwd.jpg").json()
+    assert forward["verdict"] == "likely_ai"
+    match = [s for s in forward["signals"] if s["source"] == "similarity"]
+    assert match and f"scan {original['scan_id']}" in match[0]["detail"]
+
+
+def test_different_picture_is_not_linked(client):
+    upload(client, make_png("trainedAlgorithmicMedia", seed=7))
+    other = upload(client, make_jpeg(quality=80, seed=99), "other.jpg").json()
+    assert all(s["source"] != "similarity" for s in other["signals"])
+    assert other["verdict"] in {"likely_ai", "inconclusive"}
