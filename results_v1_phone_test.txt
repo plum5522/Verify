@@ -1,0 +1,21 @@
+image                             p_fake  cifake  verdict        ms
+ai/52561a88d1096d9f7b4e05e004f79   1.000   0.019  likely_ai      115
+ai/9d9e3e9bd2f5e0f31da920a0bd2c8   1.000   0.071  likely_ai      104
+ai/PNG image.png                   0.960   0.057  likely_ai       99
+ai/Rustic Culinary Scene.png       0.665   0.000  inconclusive    99
+ai/b45516af909556d1bd712f252fad7   0.954   0.983  likely_ai      100
+ai/cf433814b144683220a7b3148aa86   1.000   0.776  likely_ai      100
+ai/d3333a9d5a685555bd15fc30be572   0.055   0.393  likely_real    102
+ai/ffc5ee72fa2b3749d98ae577634da   1.000   0.592  likely_ai      101
+real/DFF148DA-C1BE-465B-8048-A48   0.999   0.365  likely_ai      120
+real/IMG_5733.HEIC                 1.000   0.055  likely_ai      131
+real/IMG_6710.HEIC                 1.000   0.039  likely_ai      120
+real/IMG_6743.HEIC                 1.000   0.112  likely_ai      126
+real/IMG_8343.HEIC                 1.000   0.644  likely_ai      140
+real/IMG_8400.HEIC                 1.000   0.730  likely_ai      121
+real/IMG_8529.HEIC                 1.000   0.380  likely_ai      140
+real/IMG_8668.HEIC                 1.000   0.738  likely_ai      142
+real/IMG_8716.HEIC                 1.000   0.982  likely_ai      138
+real/IMG_8837.HEIC                 0.999   0.163  likely_ai      138
+
+Correct at 0.5 threshold: direct 7/18 | cifake-style 9/18
