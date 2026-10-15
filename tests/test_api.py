@@ -93,3 +93,8 @@ def test_different_picture_is_not_linked(client):
     other = upload(client, make_jpeg(quality=80, seed=99), "other.jpg").json()
     assert all(s["source"] != "similarity" for s in other["signals"])
     assert other["verdict"] in {"likely_ai", "inconclusive"}
+
+
+def test_demo_page_is_served(client):
+    r = client.get("/")
+    assert r.status_code == 200 and "Verify" in r.text

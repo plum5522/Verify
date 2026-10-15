@@ -5,10 +5,12 @@ decides a verdict, stores it via db.py, and replies with JSON.
 No machine learning and no SQL live in this file.
 """
 import hashlib
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app import db, fingerprint, provenance
@@ -113,6 +115,15 @@ def decide(prov: dict, lookalike: tuple[int, int] | None, model_result: dict) ->
 
 
 # ---------- Routes ----------
+STATIC = Path(__file__).resolve().parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+def home():
+    """The demo page. Served by the API itself, so the browser calls the same origin (no CORS needed)."""
+    return FileResponse(STATIC / "index.html")
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "model_version": MODEL_VERSION, "analysis_version": ANALYSIS_VERSION}

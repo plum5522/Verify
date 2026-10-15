@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a65; --line: #e4e2db;
+    --ai: #b3261e; --ai-bg: #fbe9e7; --warn: #a15c00; --warn-bg: #fdf0dc;
+    --gray: #55545a; --gray-bg: #eeedf0; --ok: #1e6b3a; --ok-bg: #e3f2e7; --accent: #2b4c7e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161614; --card: #22221f; --ink: #ecebe6; --muted: #a09f98; --line: #34332e;
+      --ai: #ff8a80; --ai-bg: #3a1d1b; --warn: #ffc069; --warn-bg: #3a2c14;
+      --gray: #c9c8ce; --gray-bg: #2c2c30; --ok: #8fd6a4; --ok-bg: #1b3022; --accent: #8fb3ec;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .drop { display: block; border: 2px dashed var(--line); border-radius: 14px; background: var(--card);
+          padding: 36px 16px; text-align: center; cursor: pointer; transition: border-color .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); }
+  .drop strong { display: block; font-size: 18px; margin-bottom: 4px; }
+  .drop span { color: var(--muted); font-size: 14px; }
+  input[type=file] { display: none; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-top: 20px; }
+  .result { display: grid; grid-template-columns: 112px 1fr; gap: 16px; align-items: start; }
+  .result.nopic { grid-template-columns: 1fr; }
+  .result img { width: 112px; height: 112px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+  .badge { display: inline-block; font-weight: 650; font-size: 18px; padding: 4px 12px; border-radius: 999px; }
+  .v-ai_declared { color: var(--ai); background: var(--ai-bg); }
+  .v-likely_ai { color: var(--warn); background: var(--warn-bg); }
+  .v-inconclusive { color: var(--gray); background: var(--gray-bg); }
+  .v-likely_real { color: var(--ok); background: var(--ok-bg); }
+  .explain { margin: 10px 0 0; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 8px; }
+  ul.signals { list-style: none; padding: 0; margin: 0; }
+  ul.signals li { padding: 10px 0; border-top: 1px solid var(--line); }
+  ul.signals li:first-child { border-top: 0; }
+  .src { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 14px; word-break: break-all; }
+  .error { color: var(--ai); }
+  .recent { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .recent td { padding: 6px 0; border-top: 1px solid var(--line); }
+  .recent td:last-child { text-align: right; color: var(--muted); }
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+  footer a { color: var(--accent); }
+  @media (max-width: 480px) { .result { grid-template-columns: 1fr; } .result img { width: 100%; height: 180px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Verify</h1>
+  <p class="sub">Was this image made by AI? Verify shows its evidence, and says when it can't tell.</p>
+
+  <label class="drop" id="drop">
+    <strong>Choose or drop an image</strong>
+    <span>JPG, PNG, WebP or HEIC, up to 10 MB. Images are analysed in memory and never stored.</span>
+    <input type="file" id="file" accept="image/*,.heic">
+  </label>
+
+  <div id="out"></div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Recent checks</h2>
+    <table class="recent" id="recent"><tr><td>Loading…</td></tr></table>
+  </div>
+
+  <footer>
+    Why "can't tell" is common: AI tools label their images, but WhatsApp removes every label when an image is
+    forwarded, and pixel-based detectors are unreliable on today's generators.
+    <a href="/docs">API docs</a>
+  </footer>
+</main>
+
+<script>
+const VERDICTS = {
+  ai_declared: ["AI-generated", "The file itself says it was made by an AI tool."],
+  likely_ai: ["Likely AI-generated", "Not certain, but the evidence points to AI. See below."],
+  inconclusive: ["Can't tell", "No reliable evidence either way. This is normal for forwarded images, because WhatsApp removes the labels AI tools add."],
+  likely_real: ["Likely real", "No signs of AI were found."],
+};
+const SOURCES = { iptc: "AI label", c2pa: "Content Credentials", metadata: "Metadata",
+                  similarity: "Seen before", model: "Detector model" };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function scan(file) {
+  $("out").innerHTML = '<div class="card">Checking…</div>';
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const res = await fetch("/scans", { method: "POST", body: form });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || ("Error " + res.status));
+    render(body, file);
+    loadRecent();
+  } catch (e) {
+    $("out").innerHTML = `<div class="card error">${esc(e.message)}</div>`;
+  }
+}
+
+function render(r, file) {
+  const [title, text] = VERDICTS[r.verdict] || [r.verdict, ""];
+  const preview = file && !/heic/i.test(file.name) ? URL.createObjectURL(file) : "";
+  const signals = r.signals.map((s) =>
+    `<li><div class="src">${esc(SOURCES[s.source] || s.source)}</div>${esc(s.detail)}</li>`).join("");
+  $("out").innerHTML = `
+    <div class="card">
+      <div class="result${preview ? "" : " nopic"}">
+        ${preview ? `<img src="${preview}" alt="Uploaded image">` : ""}
+        <div>
+          <span class="badge v-${esc(r.verdict)}">${esc(title)}</span>
+          <p class="explain">${esc(text)}</p>
+        </div>
+      </div>
+      <h2>Evidence</h2>
+      <ul class="signals">${signals}</ul>
+      <div class="meta">Scan #${r.scan_id} · ${r.cached ? "already checked before (cached)" : r.latency_ms + " ms"}
+        · ${esc(r.model_version)} · SHA-256 ${esc(r.image_sha256.slice(0, 16))}…</div>
+    </div>`;
+}
+
+async function loadRecent() {
+  try {
+    const rows = await (await fetch("/scans?limit=5")).json();
+    $("recent").innerHTML = rows.length
+      ? rows.map((r) => `<tr><td><span class="badge v-${esc(r.verdict)}" style="font-size:13px">${esc((VERDICTS[r.verdict] || [r.verdict])[0])}</span></td>
+                          <td>#${r.scan_id} · ${esc(r.created_at.replace("T", " ").slice(0, 16))}</td></tr>`).join("")
+      : "<tr><td>No checks yet.</td></tr>";
+  } catch { $("recent").innerHTML = "<tr><td>Couldn't load recent checks.</td></tr>"; }
+}
+
+$("file").addEventListener("change", (e) => e.target.files[0] && scan(e.target.files[0]));
+const drop = $("drop");
+["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => e.dataTransfer.files[0] && scan(e.dataTransfer.files[0]));
+loadRecent();
+</script>
+</body>
+</html>
