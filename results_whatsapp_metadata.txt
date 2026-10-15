@@ -12,3 +12,9 @@ Labels surviving: 0/17. EXIF tags after: 0 on every file.
 All outputs re-encoded as progressive JPEG with identical quantization tables (mean 23.1),
 i.e. every image is re-encoded at one fixed WhatsApp quality setting.
 Files: roughly 10x smaller for PNG originals; long side capped at 1600 px.
+
+Control group: 16 real phone photos, same procedure.
+All 16 -> JPEG, same quantization tables (mean 23.1), 0 EXIF tags, long side capped at 1600 px
+(originals 3024x4032 to 5712x4284, 0.9-5.6 MB -> 74-568 KB). Original HEIC/JPEG format difference is gone.
+After forwarding, real and AI images share the same format, quality and size limit,
+which removes the format confound of the original external test.

@@ -1,0 +1,41 @@
+Model: v1 (effnetb0-cifake-v1)
+
+image                           p_fake  verdict          ms  correct
+ai/bing_bike_wa1.jpg             1.000  likely_ai       116  yes
+ai/bing_dinner_wa1.jpg           1.000  likely_ai       110  yes
+ai/bing_rain_wa1.jpg             1.000  likely_ai       111  yes
+ai/bing_sunset_wa1.jpg           1.000  likely_ai       108  yes
+ai/chatgpt_dog_wa1.jpg           0.000  likely_real     105  NO
+ai/chatgpt_hospital_wa1.jpg      1.000  likely_ai       111  yes
+ai/chatgpt_market_wa1.jpg        1.000  likely_ai       119  yes
+ai/chatgpt_rally_wa1.jpg         0.000  likely_real     118  NO
+ai/gemini_hands_wa1.jpg          0.998  likely_ai       114  yes
+ai/gemini_streetfood_wa1.jpg     0.468  inconclusive    113  NO
+ai/gemini_temple_wa1.jpg         1.000  likely_ai       108  yes
+ai/gemini_traffic_wa1.jpg        0.068  likely_real     113  NO
+ai/metaai_chai_wa1.jpg           1.000  likely_ai       109  yes
+ai/metaai_classroom_wa1.jpg      1.000  likely_ai       108  yes
+ai/metaai_flood_wa1.jpg          1.000  likely_ai       101  yes
+ai/metaai_grandmother_wa1.jpg    0.998  likely_ai       100  yes
+ai/metaai_railway_wa1.jpg        0.994  likely_ai        99  yes
+real/real_beach_wa1.jpg          1.000  likely_ai       103  NO
+real/real_cat_wa1.jpg            1.000  likely_ai       108  NO
+real/real_church_night_wa1.jpg   1.000  likely_ai       104  NO
+real/real_coffee_wa1.jpg         1.000  likely_ai        99  NO
+real/real_concert_wa1.jpg        1.000  likely_ai       105  NO
+real/real_crowd_wa1.jpg          1.000  likely_ai       110  NO
+real/real_document_wa1.jpg       1.000  likely_ai       106  NO
+real/real_food_plate_wa1.jpg     1.000  likely_ai       102  NO
+real/real_hills_wa1.jpg          1.000  likely_ai       100  NO
+real/real_peacock_wa1.jpg        0.000  likely_real     107  yes
+real/real_person_room_wa1.jpg    0.999  likely_ai       106  NO
+real/real_puppies_wa1.jpg        1.000  likely_ai       147  NO
+real/real_restaurant_wa1.jpg     0.999  likely_ai       114  NO
+real/real_street_wet_wa1.jpg     1.000  likely_ai       109  NO
+real/real_sunset_wa1.jpg         1.000  likely_ai       106  NO
+real/real_temple_wa1.jpg         1.000  likely_ai       100  NO
+
+AI caught:        13/17
+Real passed:      1/16
+By source:        bing 4/4 | chatgpt 2/4 | gemini 2/4 | metaai 5/5 | real 1/16
+Median latency:   108 ms
