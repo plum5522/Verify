@@ -1,0 +1,56 @@
+{
+  "dataset": "alessandrasala79/ai-vs-human-generated-dataset",
+  "split": "by pair, 80/10/10, seed 42",
+  "split_sizes": {
+    "train": 63960,
+    "val": 7994,
+    "test": 7996
+  },
+  "test_accuracy": 0.9983741870935467,
+  "false_positive_rate": 0.0022511255627813906,
+  "miss_rate": 0.0010005002501250625,
+  "best_val_acc": 0.9983737803352515,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.05566730765049801,
+      "train_acc": 0.9801438398999375,
+      "val_loss": 0.008897960851468054,
+      "val_acc": 0.9966224668501376,
+      "minutes": 5.226759898662567
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.007408872088260152,
+      "train_acc": 0.9976391494684178,
+      "val_loss": 0.005624348952227349,
+      "val_acc": 0.9979984988741556,
+      "minutes": 3.9589359442392986
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.0050033787811712875,
+      "train_acc": 0.998358348968105,
+      "val_loss": 0.0051356480657389824,
+      "val_acc": 0.9983737803352515,
+      "minutes": 4.020191570123036
+    }
+  ],
+  "class_to_idx": {
+    "FAKE": 1,
+    "REAL": 0
+  },
+  "img_size": 224,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "learning_rate": 0.0001,
+  "epochs": 3
+}

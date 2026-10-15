@@ -21,9 +21,9 @@ torch.set_num_threads(min(4, os.cpu_count() or 1))  # don't hog every CPU core
 
 # ---------- Settings ----------
 BASE_DIR = Path(__file__).resolve().parent.parent   # the verify/ folder
-MODEL_PATH = BASE_DIR / "models" / "verify_effnetb0_best.pth"
-CONFIG_PATH = BASE_DIR / "models" / "results.json"
-MODEL_VERSION = "effnetb0-cifake-v1"
+MODEL_PATH = BASE_DIR / "models" / "verify_effnetb0_v2.pth"
+CONFIG_PATH = BASE_DIR / "models" / "results_v2.json"
+MODEL_VERSION = "effnetb0-aivshuman-v2"
 
 AI_THRESHOLD = 0.70     # p_fake at or above this -> likely_ai
 REAL_THRESHOLD = 0.30   # p_fake at or below this -> likely_real
