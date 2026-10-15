@@ -2,6 +2,7 @@
 db.py: everything about storing scans. SQLite, one file, one table.
 main.py calls these functions and never writes SQL itself.
 """
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -23,7 +24,7 @@ def _connect():
 
 
 def init_db():
-    """Create the table and index if they don't exist yet. Safe to run every startup."""
+    """Create the table and index if missing, and migrate older tables. Safe to run every startup."""
     with _connect() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS scans (
@@ -33,10 +34,25 @@ def init_db():
                 p_fake        REAL    NOT NULL,
                 verdict       TEXT    NOT NULL,
                 model_version TEXT    NOT NULL,
-                latency_ms    INTEGER NOT NULL
+                latency_ms    INTEGER NOT NULL,
+                signals       TEXT    NOT NULL DEFAULT '[]'
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_hash_model ON scans (image_sha256, model_version)")
+
+        # Migration 1: tables created before the provenance layer have no 'signals' column.
+        # ALTER TABLE adds it in place; existing rows get the default '[]' and nothing is lost.
+        columns = {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}
+        if "signals" not in columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN signals TEXT NOT NULL DEFAULT '[]'")
+
+
+def _row(row) -> dict | None:
+    if row is None:
+        return None
+    d = dict(row)
+    d["signals"] = json.loads(d["signals"])  # stored as JSON text, returned as a list
+    return d
 
 
 def insert_scan(image_sha256: str, result: dict) -> dict:
@@ -44,10 +60,10 @@ def insert_scan(image_sha256: str, result: dict) -> dict:
     created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO scans (created_at, image_sha256, p_fake, verdict, model_version, latency_ms) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO scans (created_at, image_sha256, p_fake, verdict, model_version, latency_ms, signals) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (created_at, image_sha256, result["p_fake"], result["verdict"],
-             result["model_version"], result["latency_ms"]),
+             result["model_version"], result["latency_ms"], json.dumps(result["signals"])),
         )
         new_id = cur.lastrowid
     return get_scan(new_id)
@@ -55,24 +71,22 @@ def insert_scan(image_sha256: str, result: dict) -> dict:
 
 def get_scan(scan_id: int) -> dict | None:
     with _connect() as conn:
-        row = conn.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
-    return dict(row) if row else None
+        return _row(conn.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone())
 
 
 def find_by_hash(image_sha256: str, model_version: str) -> dict | None:
-    """Has this exact image already been judged by this exact model?"""
+    """Has this exact image already been judged by this exact pipeline version?"""
     with _connect() as conn:
-        row = conn.execute(
+        return _row(conn.execute(
             "SELECT * FROM scans WHERE image_sha256 = ? AND model_version = ? ORDER BY id DESC LIMIT 1",
             (image_sha256, model_version),
-        ).fetchone()
-    return dict(row) if row else None
+        ).fetchone())
 
 
 def list_scans(limit: int) -> list[dict]:
     with _connect() as conn:
         rows = conn.execute("SELECT * FROM scans ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 def get_stats() -> dict:
