@@ -1,0 +1,14 @@
+WhatsApp forwarding test, hop 1 (sent as photo, SD quality, iPhone download)
+Date: 2026-10-15. 17 AI images that carried provenance labels before sending.
+Check: byte search for C2PA, JUMBF, IPTC "trainedAlgorithmicMedia"; EXIF tag count.
+
+image               before               after   size KB      resolution
+bing (4)            C2PA+JUMBF+IPTC-AI   NONE    2373-3083 -> 192-365   unchanged 1254x1254
+chatgpt (4)         C2PA+JUMBF+IPTC-AI   NONE    2388-3004 -> 233-317   unchanged 1536x1024
+gemini (4)          C2PA+JUMBF+IPTC-AI   NONE    2077-2710 -> 134-277   unchanged 1408x768
+metaai (5)          IPTC-AI              NONE     213-404  -> 200-356   1920x1280 -> 1600x1067
+
+Labels surviving: 0/17. EXIF tags after: 0 on every file.
+All outputs re-encoded as progressive JPEG with identical quantization tables (mean 23.1),
+i.e. every image is re-encoded at one fixed WhatsApp quality setting.
+Files: roughly 10x smaller for PNG originals; long side capped at 1600 px.
