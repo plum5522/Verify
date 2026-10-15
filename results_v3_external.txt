@@ -1,0 +1,49 @@
+Model: v3 (clip-vitl14-linear-v3)
+
+image                           p_fake  verdict          ms  correct
+ai/bing_bike.png                 0.007  likely_real    1689  NO
+ai/bing_dinner.png               0.000  likely_real     190  NO
+ai/bing_rain.png                 0.025  likely_real     192  NO
+ai/bing_sunset.png               0.003  likely_real     191  NO
+ai/chatgpt_dog.png               0.000  likely_real     192  NO
+ai/chatgpt_hospital.png          0.000  likely_real     193  NO
+ai/chatgpt_market.png            0.011  likely_real     193  NO
+ai/chatgpt_rally.png             0.001  likely_real     194  NO
+ai/early_beach.png               0.001  likely_real     191  NO
+ai/early_food.png                0.031  likely_real     192  NO
+ai/early_gradecard.png           0.073  likely_real     191  NO
+ai/early_market.png              0.000  likely_real     193  NO
+ai/early_peacock.png             0.000  likely_real     191  NO
+ai/early_restaurant.png          0.000  likely_real     191  NO
+ai/early_sunset.png              0.001  likely_real     192  NO
+ai/early_thali.png               0.000  likely_real     190  NO
+ai/gemini_hands.png              0.113  likely_real     191  NO
+ai/gemini_streetfood.png         0.013  likely_real     191  NO
+ai/gemini_temple.png             0.001  likely_real     191  NO
+ai/gemini_traffic.png            0.002  likely_real     191  NO
+ai/metaai_chai.jpg               0.324  inconclusive    193  NO
+ai/metaai_classroom.jpg          0.123  likely_real     194  NO
+ai/metaai_flood.jpg              0.028  likely_real     192  NO
+ai/metaai_grandmother.jpg        0.003  likely_real     193  NO
+ai/metaai_railway.jpg            0.031  likely_real     194  NO
+real/real_beach.heic             0.002  likely_real     207  yes
+real/real_cat.heic               0.000  likely_real     225  yes
+real/real_church_night.jpeg      0.268  likely_real     202  yes
+real/real_coffee.jpeg            0.000  likely_real     202  yes
+real/real_concert.jpg            0.029  likely_real     198  yes
+real/real_crowd.jpg              0.000  likely_real     201  yes
+real/real_document.heic          0.000  likely_real     201  yes
+real/real_food_plate.jpeg        0.000  likely_real     201  yes
+real/real_hills.heic             0.000  likely_real     211  yes
+real/real_peacock.heic           0.000  likely_real     201  yes
+real/real_person_room.heic       0.001  likely_real     219  yes
+real/real_puppies.jpeg           0.001  likely_real     219  yes
+real/real_restaurant.heic        0.012  likely_real     211  yes
+real/real_street_wet.jpeg        0.000  likely_real     202  yes
+real/real_sunset.heic            0.000  likely_real     218  yes
+real/real_temple.heic            0.000  likely_real     203  yes
+
+AI caught:        0/25
+Real passed:      16/16
+By source:        bing 0/4 | chatgpt 0/4 | early 0/8 | gemini 0/4 | metaai 0/5 | real 16/16
+Median latency:   193 ms

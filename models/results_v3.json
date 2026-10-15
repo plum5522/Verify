@@ -1,0 +1,29 @@
+{
+  "approach": "frozen CLIP ViT-L/14 image embeddings + logistic regression",
+  "dataset": "alessandrasala79/ai-vs-human-generated-dataset",
+  "split": "by pair, 80/10/10, seed 42 (identical to v2)",
+  "split_sizes": {
+    "train": 63960,
+    "val": 7994,
+    "test": 7996
+  },
+  "C_sweep": [
+    {
+      "C": 0.1,
+      "val_acc": 0.9492119089316988
+    },
+    {
+      "C": 1.0,
+      "val_acc": 0.9682261696272204
+    },
+    {
+      "C": 10.0,
+      "val_acc": 0.9713535151363523
+    }
+  ],
+  "best_C": 10.0,
+  "best_val_acc": 0.9713535151363523,
+  "test_accuracy": 0.9726113056528264,
+  "false_positive_rate": 0.027763881940970486,
+  "miss_rate": 0.027013506753376687
+}
