@@ -4,6 +4,7 @@ Holds all three models in one registry; VERIFY_MODEL picks which one is served.
     VERIFY_MODEL=v1   EfficientNet-B0 trained on CIFAKE
     VERIFY_MODEL=v2   EfficientNet-B0 trained on the AI-vs-human paired dataset
     VERIFY_MODEL=v3   frozen CLIP ViT-L/14 + linear decider (default)
+    VERIFY_MODEL=cf   baseline: published Community Forensics detector (Park & Owens, CVPR 2025)
 """
 import io
 import json
@@ -30,6 +31,8 @@ MODELS = {
     "v2": {"type": "effnet", "weights": "verify_effnetb0_v2.pth",
            "config": "results_v2.json", "version": "effnetb0-aivshuman-v2"},
     "v3": {"type": "clip", "head": "v3_head.json", "version": "clip-vitl14-linear-v3"},
+    "cf": {"type": "commfor", "repo": "OwensLab/commfor-model-384",
+           "version": "baseline-commfor-vits16-384"},
 }
 
 ACTIVE = os.environ.get("VERIFY_MODEL", "v3")
@@ -99,7 +102,38 @@ def _load_clip(spec):
     return p_fake
 
 
-_p_fake = _load_effnet(SPEC) if SPEC["type"] == "effnet" else _load_clip(SPEC)
+def _load_commfor(spec):
+    """Baseline, not trained by us: ViT-S/16 fine-tuned on images from 4,803 generators.
+    Rebuilt from the authors' code: timm ViT-S/16 at 384 px, one-output head, sigmoid = P(fake)."""
+    import timm
+    from huggingface_hub import hf_hub_download
+    from safetensors.torch import load_file
+    from torchvision import transforms
+
+    net = timm.create_model("vit_small_patch16_384.augreg_in21k_ft_in1k", pretrained=False)
+    net.head = nn.Linear(net.head.in_features, 1)            # one number out: "fakeness" score
+    state = load_file(hf_hub_download(spec["repo"], "model.safetensors"))
+    state = {k.removeprefix("vit."): v for k, v in state.items()}   # their wrapper named it "vit"
+    net.load_state_dict(state)
+    net.eval()
+
+    prepare = transforms.Compose([                           # the authors' test-time recipe
+        transforms.Resize(440),                              # short side to 440, keeps aspect ratio
+        transforms.CenterCrop(384),                          # then the central 384x384
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+
+    def p_fake(img):
+        x = prepare(img).unsqueeze(0)
+        with torch.inference_mode():
+            return torch.sigmoid(net(x))[0, 0].item()
+
+    return p_fake
+
+
+LOADERS = {"effnet": _load_effnet, "clip": _load_clip, "commfor": _load_commfor}
+_p_fake = LOADERS[SPEC["type"]](SPEC)
 
 
 # ---------- Per request ----------
@@ -146,6 +180,7 @@ if __name__ == "__main__":
     print(f"{'image':30} {'p_fake':>7}  {'verdict':13} {'ms':>5}  correct")
     by_source = {}                              # e.g. {"gemini": [3, 4]} = 3 right out of 4
     latencies = []
+    scores = {True: [], False: []}               # p_fake of AI images / of real images
     for f in files:
         try:
             img = load_image(f.read_bytes())
@@ -160,6 +195,7 @@ if __name__ == "__main__":
         tally[0] += correct
         tally[1] += 1
         latencies.append(r["latency_ms"])
+        scores[is_ai].append(r["p_fake"])
         print(f"{f.parent.name + '/' + f.name:30.30} {r['p_fake']:7.3f}  {r['verdict']:13} "
               f"{r['latency_ms']:5}  {'yes' if correct else 'NO'}")
 
@@ -169,6 +205,10 @@ if __name__ == "__main__":
     print(f"\nAI caught:        {ai_right}/{ai_total}")
     print(f"Real passed:      {real_right}/{real_total}")
     print("By source:        " + " | ".join(f"{k} {v[0]}/{v[1]}" for k, v in sorted(by_source.items())))
+    ai_s, real_s = scores[True], scores[False]
+    if ai_s and real_s:   # AUC: chance a random AI image scores above a random real one
+        wins = sum((a > b) + 0.5 * (a == b) for a in ai_s for b in real_s)
+        print(f"AUC:              {wins / (len(ai_s) * len(real_s)):.3f}")
     if latencies:
         steady = sorted(latencies[1:] or latencies)   # skip the first (warm-up) prediction
         print(f"Median latency:   {steady[len(steady) // 2]} ms")
