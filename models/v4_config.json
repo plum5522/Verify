@@ -1,0 +1,59 @@
+{
+  "base": "OwensLab/commfor-model-384",
+  "timm_name": "vit_small_patch16_384.augreg_in21k_ft_in1k",
+  "crop": 384,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "threshold": 0.6819696426391602,
+  "threshold_rule": "95th percentile of real validation scores (5% false alarms)",
+  "held_out": [
+    "qwen-image",
+    "seedream-v4.0",
+    "seedream-v4.5"
+  ],
+  "lr": 1e-05,
+  "epochs": 3,
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 0.1874048412878574,
+      "none": 0.9899660893952291,
+      "none_unseen": 0.9309792843691148,
+      "whatsapp": 0.9695043268076562,
+      "whatsapp_unseen": 0.8848791588198367
+    },
+    {
+      "epoch": 2,
+      "loss": 0.08428279513506086,
+      "none": 0.9925283452279622,
+      "none_unseen": 0.9571693869010254,
+      "whatsapp": 0.9766689310111524,
+      "whatsapp_unseen": 0.9098843900397573
+    },
+    {
+      "epoch": 3,
+      "loss": 0.0487604562567405,
+      "none": 0.9931683635609682,
+      "none_unseen": 0.9612863569784473,
+      "whatsapp": 0.9791247899343066,
+      "whatsapp_unseen": 0.9209248796819418
+    }
+  ],
+  "before": {
+    "none": 0.936163627534429,
+    "none_unseen": 0.8894878635697844,
+    "whatsapp": 0.927656648988411,
+    "whatsapp_unseen": 0.8794988491316174
+  },
+  "train_images": 13866,
+  "val_images": 8948,
+  "version": "commfor-openfake-wa-v4"
+}

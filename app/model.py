@@ -1,10 +1,11 @@
 """
 model.py: the only file in Verify that knows about machine learning.
-Holds all three models in one registry; VERIFY_MODEL picks which one is served.
+Holds every model in one registry; VERIFY_MODEL picks which one is served.
     VERIFY_MODEL=v1   EfficientNet-B0 trained on CIFAKE
     VERIFY_MODEL=v2   EfficientNet-B0 trained on the AI-vs-human paired dataset
-    VERIFY_MODEL=v3   frozen CLIP ViT-L/14 + linear decider (default)
+    VERIFY_MODEL=v3   frozen CLIP ViT-L/14 + linear decider
     VERIFY_MODEL=cf   baseline: published Community Forensics detector (Park & Owens, CVPR 2025)
+    VERIFY_MODEL=v4   Community Forensics fine-tuned on OpenFake with simulated WhatsApp compression (default)
 """
 import io
 import json
@@ -33,9 +34,11 @@ MODELS = {
     "v3": {"type": "clip", "head": "v3_head.json", "version": "clip-vitl14-linear-v3"},
     "cf": {"type": "commfor", "repo": "OwensLab/commfor-model-384",
            "version": "baseline-commfor-vits16-384"},
+    "v4": {"type": "v4", "weights": "verify_v4.pth", "config": "v4_config.json",
+           "version": "commfor-openfake-wa-v4"},
 }
 
-ACTIVE = os.environ.get("VERIFY_MODEL", "v3")
+ACTIVE = os.environ.get("VERIFY_MODEL", "v4")
 if ACTIVE not in MODELS:
     raise ValueError(f"VERIFY_MODEL must be one of {list(MODELS)}, got {ACTIVE!r}")
 SPEC = MODELS[ACTIVE]
@@ -132,8 +135,42 @@ def _load_commfor(spec):
     return p_fake
 
 
-LOADERS = {"effnet": _load_effnet, "clip": _load_clip, "commfor": _load_commfor}
+def _load_v4(spec):
+    """Our fine-tuned detector. Preparation must match how it was trained and validated:
+    a 384x384 crop from the centre at ORIGINAL resolution (no resizing), so fine pixel traces survive."""
+    import math
+    import timm
+    from torchvision import transforms
+
+    with open(MODELS_DIR / spec["config"]) as f:
+        config = json.load(f)
+    net = timm.create_model(config["timm_name"], pretrained=False)
+    net.head = nn.Linear(net.head.in_features, 1)
+    net.load_state_dict(torch.load(MODELS_DIR / spec["weights"], map_location="cpu", weights_only=True))
+    net.eval()
+    spec["threshold"] = config["threshold"]       # chosen on validation data: 5% false alarms
+    crop = config["crop"]
+    to_tensor = transforms.Compose([transforms.ToTensor(), transforms.Normalize(config["mean"], config["std"])])
+
+    def p_fake(img):
+        w, h = img.size
+        if min(w, h) < crop:                       # tiny image: enlarge just enough for one crop
+            s = crop / min(w, h)
+            img = img.resize((math.ceil(w * s), math.ceil(h * s)), Image.BICUBIC)
+            w, h = img.size
+        x, y = (w - crop) // 2, (h - crop) // 2
+        t = to_tensor(img.crop((x, y, x + crop, y + crop))).unsqueeze(0)
+        with torch.inference_mode():
+            return torch.sigmoid(net(t))[0, 0].item()
+
+    return p_fake
+
+
+LOADERS = {"effnet": _load_effnet, "clip": _load_clip, "commfor": _load_commfor, "v4": _load_v4}
 _p_fake = LOADERS[SPEC["type"]](SPEC)
+if "threshold" in SPEC:                            # a calibrated model brings its own cut-off
+    AI_THRESHOLD = SPEC["threshold"]
+EVAL_THRESHOLD = SPEC.get("threshold", 0.5)       # what "caught" means in the evaluation below
 
 
 # ---------- Per request ----------
@@ -176,7 +213,7 @@ if __name__ == "__main__":
         else:
             files.append(p)
 
-    print(f"Model: {ACTIVE} ({MODEL_VERSION})\n")
+    print(f"Model: {ACTIVE} ({MODEL_VERSION}) | counted as AI at p_fake >= {EVAL_THRESHOLD:.3f}\n")
     print(f"{'image':30} {'p_fake':>7}  {'verdict':13} {'ms':>5}  correct")
     by_source = {}                              # e.g. {"gemini": [3, 4]} = 3 right out of 4
     latencies = []
@@ -189,7 +226,7 @@ if __name__ == "__main__":
             continue
         r = predict(img)
         is_ai = f.parent.name.lower() == "ai"   # folder name is the true label
-        correct = (r["p_fake"] >= 0.5) == is_ai
+        correct = (r["p_fake"] >= EVAL_THRESHOLD) == is_ai
         source = f.stem.split("_")[0] if is_ai else "real"
         tally = by_source.setdefault(source, [0, 0])
         tally[0] += correct

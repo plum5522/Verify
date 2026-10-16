@@ -1,0 +1,42 @@
+Model: v4 (commfor-openfake-wa-v4) | counted as AI at p_fake >= 0.682
+
+image                           p_fake  verdict          ms  correct
+ai/bing_bike_wa1.jpg             0.268  likely_real      37  NO
+ai/bing_dinner_wa1.jpg           0.004  likely_real      36  NO
+ai/bing_rain_wa1.jpg             0.195  likely_real      36  NO
+ai/bing_sunset_wa1.jpg           0.002  likely_real      37  NO
+ai/chatgpt_dog_wa1.jpg           0.937  likely_ai        37  yes
+ai/chatgpt_hospital_wa1.jpg      0.670  inconclusive     37  NO
+ai/chatgpt_market_wa1.jpg        1.000  likely_ai        37  yes
+ai/chatgpt_rally_wa1.jpg         0.867  likely_ai        37  yes
+ai/gemini_hands_wa1.jpg          0.954  likely_ai        37  yes
+ai/gemini_streetfood_wa1.jpg     0.918  likely_ai        37  yes
+ai/gemini_temple_wa1.jpg         0.981  likely_ai        37  yes
+ai/gemini_traffic_wa1.jpg        0.999  likely_ai        38  yes
+ai/metaai_chai_wa1.jpg           0.958  likely_ai        38  yes
+ai/metaai_classroom_wa1.jpg      0.999  likely_ai        37  yes
+ai/metaai_flood_wa1.jpg          0.924  likely_ai        37  yes
+ai/metaai_grandmother_wa1.jpg    0.995  likely_ai        37  yes
+ai/metaai_railway_wa1.jpg        0.944  likely_ai        38  yes
+real/real_beach_wa1.jpg          0.001  likely_real      37  yes
+real/real_cat_wa1.jpg            0.003  likely_real      37  yes
+real/real_church_night_wa1.jpg   0.012  likely_real      37  yes
+real/real_coffee_wa1.jpg         0.250  likely_real      37  yes
+real/real_concert_wa1.jpg        0.039  likely_real      36  yes
+real/real_crowd_wa1.jpg          0.074  likely_real      36  yes
+real/real_document_wa1.jpg       0.061  likely_real      36  yes
+real/real_food_plate_wa1.jpg     0.017  likely_real      36  yes
+real/real_hills_wa1.jpg          0.002  likely_real      36  yes
+real/real_peacock_wa1.jpg        0.001  likely_real      36  yes
+real/real_person_room_wa1.jpg    0.025  likely_real      36  yes
+real/real_puppies_wa1.jpg        0.014  likely_real      36  yes
+real/real_restaurant_wa1.jpg     0.285  likely_real      36  yes
+real/real_street_wet_wa1.jpg     0.082  likely_real      36  yes
+real/real_sunset_wa1.jpg         0.193  likely_real      36  yes
+real/real_temple_wa1.jpg         0.732  likely_ai        36  NO
+
+AI caught:        12/17
+Real passed:      15/16
+By source:        bing 0/4 | chatgpt 3/4 | gemini 4/4 | metaai 5/5 | real 15/16
+AUC:              0.886
+Median latency:   37 ms

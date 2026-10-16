@@ -17,3 +17,6 @@ venv/
 .vscode/
 .ipynb_checkpoints/
 test_images/
+
+# v4 weights (87 MB) go to a GitHub Release too
+models/verify_v4.pth

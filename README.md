@@ -8,21 +8,24 @@ AI-generated images spread widely through reels and WhatsApp forwards, and many 
 
 The project has two parts:
 
-1. **Self-trained detectors**, evaluated on images from generators they never saw, before and after WhatsApp forwarding
+1. **Self-trained detectors**, evaluated on images from current generators, before and after real WhatsApp forwarding
 2. **A backend API** that checks provenance labels, recognises forwarded copies of images it has seen, runs a detector, and returns a verdict with its evidence
 
 ## Key findings
 
-**1. Benchmark accuracy did not transfer to current generators.** Three detectors scored 97 to 99.8% on their own held-out test sets. On a self-collected set of 41 images (25 AI images from ChatGPT, Gemini, Bing Image Creator, Meta AI and earlier tools; 16 real phone photos), none of them was usable.
+**1. Benchmark accuracy did not transfer to current generators, until the training data and recipe were fixed.** All models were tested on the same self-collected set of 41 images (25 AI images from ChatGPT, Gemini, Bing Image Creator, Meta AI and earlier tools; 16 real phone photos), which no model was trained or tuned on.
 
-| Model | Approach | Benchmark test accuracy | External set, at 0.5 threshold | External AUC |
-|---|---|---|---|---|
-| v1 | EfficientNet-B0 fine-tuned on CIFAKE | 97.9% | AI caught 22/25, **real passed 0/16** | 0.34 |
-| v2 | EfficientNet-B0 fine-tuned on an 80K paired dataset | 99.8% | **AI caught 0/25**, real passed 16/16 | 0.49 |
-| v3 | Frozen CLIP ViT-L/14 + logistic regression | 97.3% | AI caught 0/25, real passed 16/16 | 0.69 |
-| Baseline (not ours) | [Community Forensics](https://arxiv.org/abs/2411.04125) ViT-S, trained on 4,803 generators | n/a | AI caught 3/25, real passed 16/16 | **0.93** |
+| Model | Approach | Own test set | External: AI caught | External: real passed | External AUC |
+|---|---|---|---|---|---|
+| v1 | EfficientNet-B0 fine-tuned on CIFAKE | 97.9% | 22/25 | **0/16** | 0.34 |
+| v2 | EfficientNet-B0 fine-tuned on an 80K paired dataset | 99.8% | **0/25** | 16/16 | 0.49 |
+| v3 | Frozen CLIP ViT-L/14 + logistic regression | 97.3% | 0/25 | 16/16 | 0.69 |
+| Baseline (not ours) | [Community Forensics](https://arxiv.org/abs/2411.04125) ViT-S, trained on 4,803 generators | n/a | 3/25 | 16/16 | 0.93 |
+| **v4** | **Community Forensics fine-tuned on OpenFake with WhatsApp-style training** | 0.993 val AUC | **23/25** | **16/16** | **0.95** |
 
-AUC measures how well a model ranks AI images above real ones regardless of threshold (0.5 is random, 1.0 is perfect). v1 and v2 effectively gave one answer for everything. v3, a frozen-CLIP probe (Ojha et al., CVPR 2023), kept a weak ranking signal. The published Community Forensics detector, run as a baseline, ranks far better (all 16 real photos scored at most 0.003), but almost all AI scores sat below 0.5: good ranking, badly placed threshold. Choosing a threshold on these same 41 images would be tuning on the test set, so it was not done.
+AUC measures how well a model ranks AI images above real ones regardless of threshold (0.5 is random, 1.0 is perfect). v1 to v3 used a 0.5 threshold; v4 uses its own threshold (0.682), chosen on OpenFake validation data so that 5% of real images are flagged, never on these 41 images.
+
+v1 and v2 effectively gave one answer for everything. v3, a frozen-CLIP probe (Ojha et al., CVPR 2023), kept only a weak ranking signal. The published Community Forensics detector ranked well (all 16 real photos scored at most 0.003) but placed almost every AI score below 0.5: good ranking, wrong threshold. v4 fixed both: it caught every ChatGPT, Gemini, Meta AI and "early" image and flagged no real photo. It missed 2 of 4 Bing images. **Meta AI is not in v4's training data at all, and v4 caught 5/5**, the clearest sign it learned something beyond the generators it trained on (on 5 images).
 
 **2. Generators label their own images, and WhatsApp deletes the labels.** A metadata check found AI provenance markers (C2PA Content Credentials and/or the IPTC "trainedAlgorithmicMedia" tag) in 17 of 25 AI images: all ChatGPT, Bing and Gemini images (C2PA + IPTC) and all Meta AI images (IPTC). None of the 16 real photos carried them. As a detector, that check alone would catch 17/25 with zero false alarms, better than any trained model.
 
@@ -37,24 +40,27 @@ After sending those 17 images once through WhatsApp (as photos, standard quality
 
 WhatsApp does not target AI labels specifically. It discards all metadata and re-encodes the pixels at one fixed quality. The provenance is lost as a side effect. Details: [`results_whatsapp_metadata.txt`](results_whatsapp_metadata.txt).
 
-**3. Forwarding did not destroy v3's weak signal, but did not make it usable.** The 16 real photos were forwarded the same way as a control group. On the 33 forwarded images (17 AI, 16 real):
+**3. Real WhatsApp forwarding: training on the measured WhatsApp settings made the difference.** The 16 real photos were forwarded the same way as a control group. On the 33 images (17 AI, 16 real), before and after one real forward:
 
-| Model | AUC before | AUC after 1 forward |
-|---|---|---|
-| v1 | 0.36 | 0.37 |
-| v2 | 0.47 | 0.50 |
-| v3 | 0.75 | 0.82 |
-| Community Forensics | 0.86 | 0.83 |
+| Model | AUC before | AUC after | After forward: AI caught | After forward: real passed |
+|---|---|---|---|---|
+| v1 | 0.36 | 0.37 | 13/17 | 1/16 |
+| v2 | 0.47 | 0.50 | 0/17 | 16/16 |
+| v3 | 0.75 | 0.82 | 1/17 | 15/16 |
+| Community Forensics | 0.86 | 0.83 | 0/17 | 16/16 |
+| **v4** | **0.94** | **0.88** | **12/17** | **15/16** |
 
-For the strongest detector, forwarding erased much of the signal: its mean score on AI images fell from 0.19 to 0.04 (lower on 13 of 17), and its two most confident detections collapsed (`chatgpt_hospital` 0.86 to 0.007, `chatgpt_rally` 0.82 to 0.015).
+For the published detector, forwarding erased most of the signal: its mean score on AI images fell from 0.19 to 0.04, and its two most confident detections collapsed (`chatgpt_hospital` 0.86 to 0.007, `chatgpt_rally` 0.82 to 0.015). v4 kept most of it: after a real forward it still caught all Gemini (4/4) and Meta AI (5/5) images and 3/4 ChatGPT images. Forwarding still costs it something: AUC fell from 0.94 to 0.88, all 4 Bing images were missed, `chatgpt_hospital` dropped just under the threshold (0.670 vs 0.682), and one forwarded real photo (`real_temple`) was flagged (0.732), in line with the 5% false-alarm rate the threshold was set for.
 
-For v3, compression raised v3's scores for both groups (16/17 AI images and 8/16 real photos scored higher), so part of the change is a reaction to compression, not to AI. The difference between 0.75 and 0.82 on 33 images is within noise and is not claimed as an improvement. One more effect: after forwarding, real and AI images share the same format, quality and maximum size, which removes the format confound of the original test (iPhone HEIC vs generator PNG).
+For v3, compression raised scores for both groups (16/17 AI images and 8/16 real photos scored higher), so part of the change is a reaction to compression, not to AI. The difference between 0.75 and 0.82 on 33 images is within noise and is not claimed as an improvement. One more effect: after forwarding, real and AI images share the same format, quality and maximum size, which removes the format confound of the original test (iPhone HEIC vs generator PNG).
 
 **4. WhatsApp's processing is measurable and reproducible.** Every forwarded file used the same JPEG quantization tables, an exact match for standard quality 80 with 4:2:0 chroma subsampling, and the long side was capped at 1600 px. A simulator with those settings reproduced the forwarded AI images almost exactly (median PSNR 44 dB) and the resized phone photos closely (35 dB; WhatsApp's resizing filter differs slightly).
 
 **5. A forwarded copy can be linked back to its labelled original.** A 64-bit perceptual hash (pHash) of each original and its forward differed by at most 2 bits across all 33 pairs, while the closest two different images in the set were 18 bits apart (1,876 pairs). Average hash failed the same test (two different images 3 bits apart), which is why pHash is used.
 
-**Conclusion.** For an image fresh from a major generator, a metadata check is reliable. For a forwarded image the label is gone, and pixel-based detection is too weak to give a verdict on its own. So the API checks labels first, matches forwards to labelled images it has already seen, and otherwise says "inconclusive" rather than guess with false confidence.
+**6. v4 on OpenFake validation (4,474 images, each also in a simulated-WhatsApp version).** Before fine-tuning, the Community Forensics weights scored AUC 0.936 clean, 0.928 after simulated WhatsApp, and 0.879 on the three held-out generators. After 3 epochs: 0.993 clean, **0.979 after simulated WhatsApp, 0.921 on held-out generators**. The largest gains were on the generators behind ChatGPT (gpt-image-1: 0.751 to 0.892) and Gemini (nano-banana-2: 0.781 to 0.914). At the chosen threshold: 96.6% of fakes caught with 4.5% of real images flagged (clean), 92.1% with 5.5% (simulated WhatsApp).
+
+**Conclusion.** The three layers cover each other. For an image fresh from a major generator, the metadata label is certain. For a forward of an image the API has already seen, the perceptual hash recovers that label. For everything else, v4 now catches most current-generator images, including after a real WhatsApp forward, but not all (Bing was its blind spot after forwarding), so a "not detected" result is still reported as "inconclusive" rather than "real".
 
 ## Status
 
@@ -68,11 +74,11 @@ For v3, compression raised v3's scores for both groups (16/17 AI images and 8/16
 | Provenance (metadata) check and WhatsApp forwarding test, 1 hop | Done |
 | Community Forensics baseline on the same images | Done |
 | API: provenance layer, evidence signals, perceptual-hash matching, demo page, 23 tests | Done |
-| v4: Community Forensics fine-tuned on OpenFake with simulated WhatsApp compression | In progress |
+| v4: Community Forensics fine-tuned on OpenFake with WhatsApp-style training; tested on the external set and real forwards | Done |
 
 ## Models
 
-All three share the evaluation script and test set, so results are directly comparable. The 41 external images are personal or self-generated and are not in the repository.
+All models share the evaluation script and test set, so results are directly comparable. The 41 external images are personal or self-generated and are not in the repository.
 
 ### v1: CIFAKE baseline
 - EfficientNet-B0 (ImageNet-pretrained), fine-tuned 3 epochs, AdamW, learning rate 1e-4
@@ -98,9 +104,21 @@ All three share the evaluation script and test set, so results are directly comp
 - **Result:** best ranking of the three on external images (AUC 0.69), still unusable as a classifier
 - Notebook: [`notebooks/train_v3_clip.ipynb`](notebooks/train_v3_clip.ipynb) · Decider weights: [`models/v3_head.json`](models/v3_head.json) · Results: [`models/results_v3.json`](models/results_v3.json)
 
+### v4: Community Forensics fine-tuned on OpenFake with WhatsApp-style training
+- **Why this recipe:** recent work found that frozen-backbone probes like v3 are weak (OpenFake's own CLIP probe scored F1 0.51; Community Forensics and B-Free report end-to-end fine-tuning far ahead of linear probes), that generator diversity matters more than image count, and that real/fake differences in format and size create shortcuts. v1 to v3 had all three problems.
+- **Start point:** the published Community Forensics weights (ViT-S/16 at 384 px, already trained on 4,803 generators), fine-tuned end to end
+- **Data:** [OpenFake](https://arxiv.org/abs/2509.09495) (CC BY-NC 4.0), sampled to 13,866 training crops from 71 generators (at most 250 images per generator, so Stable Diffusion variants don't dominate) and 4,474 validation images from OpenFake's separate validation files. Real images: LAION and Pexels. Includes gpt-image-1, Imagen 3 and 4, Nano Banana 2, DALL-E 3, Flux, Midjourney and Grok. **Not included: Meta AI.**
+- **Shortcut check:** in OpenFake, 71% of fakes are PNG while 96% of real images are JPEG, and real images are larger. So every image, real or fake, gets the same random processing: 30% chance of downscaling (0.5 to 0.9x), then unchanged (20%), JPEG at quality 65 to 95 (40%), or **the measured WhatsApp settings** (40%: long side 1600 px, JPEG quality 80, 4:2:0)
+- **Crop, don't resize:** a random 384x384 crop at native resolution, so fine generator traces are not smoothed away (v1 to v3 squashed whole images to 224x224)
+- **Unseen-generator test:** Seedream 4.0, Seedream 4.5 and Qwen-Image never used in training, only in validation
+- **Training:** AdamW, learning rate 1e-5 (small, to avoid overwriting what the base model knows), weight decay 0.05, 3 epochs, cosine schedule, mixed precision, class-balanced loss (training set was 41% real); about 3 minutes per epoch on a Kaggle T4
+- **Threshold:** 0.682, the 95th percentile of real validation scores (5% false alarms), chosen on validation data only
+- **Serving:** centre 384x384 crop at native resolution, same as validation; about 37 ms per image on a laptop CPU
+- Config and training history: [`models/v4_config.json`](models/v4_config.json) · Weights: `verify_v4.pth` on the [v4 release](../../releases) · Notebook: [`notebooks/train_v4_openfake.ipynb`](notebooks/train_v4_openfake.ipynb)
+
 ## API
 
-FastAPI + SQLite. The server loads the selected model once at startup and runs inference on CPU (median latency: v1/v2 about 100 ms, v3 about 190 ms, Community Forensics about 40 ms on a laptop). A demo page is served at `/`.
+FastAPI + SQLite. The server loads the selected model once at startup and runs inference on CPU (median latency: v4 and Community Forensics about 40 ms, v1/v2 about 100 ms, v3 about 190 ms on a laptop). v4 is served by default. A demo page is served at `/`.
 
 How a scan is decided (`POST /scans`):
 
@@ -142,7 +160,7 @@ Example: the WhatsApp forward of a ChatGPT image, uploaded after the original ha
   ]
 }
 ```
-The model alone would have called this image real. The label on the original, recovered through the look-alike match, is what identifies it.
+This example was recorded with v3 serving, which called the image real. The label on the original, recovered through the look-alike match, is what identified it. (v4 alone scores this forward 0.937.)
 
 ### Backend design decisions
 
@@ -159,7 +177,7 @@ The model alone would have called this image real. The label on the original, re
 | Hamming distance computed in Python over labelled scans | SQLite has no bit-count function; a linear scan is fine for thousands of rows | Millions of rows would need an index for Hamming search (e.g. a BK-tree) |
 | Schema changes as in-place migrations (`ALTER TABLE ... ADD COLUMN`) checked at startup | Existing scans are kept; tested against an old-format database | Hand-written; a larger project would use a migration tool such as Alembic |
 | Demo page served by FastAPI itself | Same origin as the API, so no CORS configuration | Not a separate frontend |
-| Model registry selected by `VERIFY_MODEL` (v1, v2, v3) | Same API and evaluation script for every model; switching is one environment variable | Only one model served per process |
+| Model registry selected by `VERIFY_MODEL` (v1, v2, v3, cf, v4) | Same API and evaluation script for every model; switching is one environment variable | Only one model served per process |
 | Model loaded once at startup | Loading takes seconds, inference takes milliseconds | Startup is slower |
 | Preprocessing values and label mapping read from the training output files | Training and serving can never silently disagree; v2 flipped the label order (FAKE = 1) and the API needed no code change | None |
 | Sync routes (`def`), not `async def` | Inference is CPU-bound; FastAPI runs sync routes in a thread pool so they don't block the event loop | None at this scale |
@@ -171,7 +189,8 @@ The model alone would have called this image real. The label on the original, re
 | Page size capped at 100 | One request can't pull the whole database | Needs pagination beyond 100 |
 | Parameterized SQL everywhere | Prevents SQL injection | None |
 | SQLite | Zero setup, one file | One writer at a time, single machine; multiple servers would need Postgres |
-| Model verdict bands (likely AI at 0.70 or above) | A 51% guess shouldn't be presented as a fact | Thresholds not yet calibrated on held-out data (planned with v4) |
+| v4's threshold comes from its config file, set on validation data for 5% false alarms | Chosen before seeing the external images; serving and evaluation use the same value | 5% of real photos will be flagged "likely AI"; a stricter threshold would miss more fakes |
+| Serving preprocessing matches validation exactly (centre crop at native resolution) | A model only works with the preparation it was trained with | A centre crop sees only part of a large photo; averaging several crops would cost more time |
 
 ## Running it
 
@@ -181,14 +200,14 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --reload-dir app
 ```
-Then open http://localhost:8000 for the demo page, or http://localhost:8000/docs for the API. v3 is served by default and downloads CLIP (about 1.7 GB) on first start. To serve another model: `VERIFY_MODEL=v1 python -m uvicorn app.main:app` (`v1`, `v2`, `v3`, or `cf` for the Community Forensics baseline).
+Then open http://localhost:8000 for the demo page, or http://localhost:8000/docs for the API. v4 is served by default: download `verify_v4.pth` from the [v4 release](../../releases) into `models/` first. To serve another model: `VERIFY_MODEL=v3 python -m uvicorn app.main:app` (`v1`, `v2`, `v3`, `cf` for the Community Forensics baseline, or `v4`).
 
 Tests (23: provenance, fingerprint, API status codes, caching, look-alike matching, migration), using the small v1 model and a temporary database:
 ```bash
 python -m pytest -q
 ```
 
-The v1 weights are in `models/`. The v2 weights (`verify_effnetb0_v2.pth`) are attached to the [v2 release](../../releases); download them into `models/`.
+The v1 weights are in `models/`. The v2 and v4 weights are attached to the [releases](../../releases); download them into `models/`.
 
 To evaluate a model on folders of images (the folder name `ai` or `real` is the true label; the filename prefix before `_` is the source):
 ```bash
@@ -199,15 +218,18 @@ Raw outputs of every run are in the `results_*.txt` files.
 
 ## Known limitations
 
-- The external set is small (41 images; 33 forwarded). It reliably reveals gross failures; differences of a few AUC points are noise.
+- The external set is small (41 images; 33 forwarded). It reliably reveals gross failures; differences of a few AUC points, and results on 4 or 5 images per generator, are not precise.
+- v4's 5/5 on Meta AI is encouraging but is only 5 images from one unseen generator.
+- v4's validation uses a simulated WhatsApp; the real-forward test is the 33-image set.
 - The provenance check detects C2PA and IPTC labels; it does not verify C2PA signatures (that needs `c2patool` or the C2PA SDK).
 - Look-alike matching only helps if the labelled original was scanned first, and it was measured on 49 images.
 - Only one forwarding hop and one quality setting (standard, not HD) were tested.
 - The 8 "early" AI images had no metadata and unknown processing history.
-- Training resizes images to 224x224 without preserving aspect ratio; the API does the same so they match.
+- v1 to v3 resize images to 224x224 without preserving aspect ratio (the API matches this for those models); v4 uses crops instead.
 
 ## Next steps
 
-1. **v4:** the Community Forensics detector fine-tuned end to end on [OpenFake](https://arxiv.org/abs/2509.09495) (80 generators including GPT Image 1, Imagen 4 and Nano Banana), with real and fake images given identical processing to remove format and size shortcuts, random crops instead of resizing, and the measured WhatsApp settings as augmentation; Seedream and Qwen-Image held out as unseen generators; threshold set on validation data; tested once on the external set
-2. Verify C2PA signatures with the official SDK
+1. A larger external test set, especially more Bing images (v4's weakest source after forwarding) and more real photos to measure the false-alarm rate properly
+2. Average several crops per image instead of one centre crop
 3. Multi-hop and HD-quality forwarding tests
+4. Verify C2PA signatures with the official SDK
